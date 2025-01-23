@@ -4,7 +4,7 @@ import time
 from typing import Optional
 
 class CoordinatorDiscovery:
-    MCAST_GRP = '192.168.1.255'
+    MCAST_GRP = '224.1.1.1'
     MCAST_PORT = 25565
     
     def __init__(self):
@@ -12,13 +12,11 @@ class CoordinatorDiscovery:
         
     def _setup_socket(self) -> socket.socket:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        try:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        except Exception:
-            pass
-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.bind(('', self.MCAST_PORT))
+        # Join the multicast group
+        mreq = socket.inet_aton(self.MCAST_GRP) + socket.inet_aton('0.0.0.0')
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
         return sock
     
     def find_coordinator(self) -> Optional[str]:
@@ -26,18 +24,18 @@ class CoordinatorDiscovery:
         while True:
             try:
                 data, addr = self.sock.recvfrom(1024)
-                if data == b"Coordinator Discovery" and addr[0] != self.MCAST_GRP:
+                if data == b"Coordinator Discovery":
+                    print(f"Found coordinator at {addr[0]}")
                     return addr[0]
             except Exception as e:
-                print(f"\033[91mError during coordinator discovery: {e}\033[0m")
+                print(f"\033[91mError during discovery: {e}\033[0m")
                 time.sleep(1)
-                continue
     
     def register_with_coordinator(self, coordinator_ip: str):
         local_ip = socket.gethostbyname(socket.gethostname())
         try:
             response = requests.post(
-                f"http://{coordinator_ip}:8080/register",
+                f"http://{coordinator_ip}:8081/register",
                 params={"worker_ip": local_ip},
                 timeout=5
             )
