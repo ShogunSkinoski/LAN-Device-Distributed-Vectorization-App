@@ -60,4 +60,19 @@ class WorkerNode:
             show_progress_bar=False
         )
         return vector
+    
+    def get_similiar_texts(self,vector, limit=10):
+        # Search similar vectors in Milvus
+        texts, distances = self.milvus.get_batch(
+            vector=np.array(vector),
+            limit=limit
+        )
+        
+        return {
+            "status": "success",
+            "results": [
+                {"text": text, "score": float(1 / (1 + distance))}
+                for text, distance in zip(texts, distances)
+            ]
+        }
 

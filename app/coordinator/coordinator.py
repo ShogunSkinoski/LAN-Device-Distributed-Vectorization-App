@@ -119,28 +119,14 @@ class Coordinator:
                 # Get vector embedding from worker
                 async with aiohttp.ClientSession() as session:
                     async with session.post(
-                        f"http://{worker.ip}:{SLAVE_PORT}/embed",
+                        f"http://{worker.ip}:{SLAVE_PORT}/search",
                         json={"text": kwargs["query"]}
                     ) as response:
                         if response.status != 200:
                             raise Exception(f"Failed to get embedding: {await response.text()}")
-                        vector_data = await response.json()
-                        vector = vector_data["vector"]
-                
-                # Search similar vectors in Milvus
-                texts, distances = self.milvus.get_batch(
-                    vector=np.array(vector),
-                    limit=kwargs.get("limit", 10)
-                )
-                
-                return {
-                    "status": "success",
-                    "results": [
-                        {"text": text, "score": float(1 / (1 + distance))}
-                        for text, distance in zip(texts, distances)
-                    ]
-                }
-            
+                        text_search_result = await response.json()
+                        texts = text_search_result["results"]
+                        return texts            
             else:
                 raise ValueError(f"Unknown job type: {job}")
                 

@@ -28,17 +28,15 @@ async def vectorize(batch: TextBatch):
             "message": str(e)
         }
 
-@app.post("/embed")
-async def embed(query: TextQuery):
+@app.post("/search")
+async def search(query: TextQuery):
     """Generate embedding for a single text query"""
     try:
         vector = worker.embed_text(query)
         # Handle NaN values for JSON serialization
         vector = np.nan_to_num(vector, nan=0.0, posinf=0.0, neginf=0.0)
-        return {
-            "vector": vector.tolist(),
-            "status": "success"
-        }
+        
+        return worker.get_similiar_texts(vector)
     except Exception as e:
         raise HTTPException(
             status_code=500,
